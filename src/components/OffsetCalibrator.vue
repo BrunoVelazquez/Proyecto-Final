@@ -292,10 +292,14 @@ function handleCancel() {
 }
 .oc-btn-cancel:hover { background: #4a5568; color: #e2e8f0; }
 .oc-btn-apply {
-  background: #1d9e75;
-  color: white;
+  background: #0f3460;
+  color: #90cdf4;
+  border: 1px solid rgba(144, 205, 244, 0.3);
 }
-.oc-btn-apply:hover { background: #178a64; }
+.oc-btn-apply:hover {
+  background: #1a4a7a;
+  color: #bee3f8;
+}
 
 .oc-waiting .oc-instruction { text-align: center; padding: 8px 0; }
 </style>

@@ -142,6 +142,15 @@ function onFilterChange(cat) {
   else selectedCategories.value.push(cat)
   handleFilterChange()
 }
+
+// Expose so App.vue can trigger campaign loading after selection
+const emit = defineEmits(['requestCampaignSelect', 'logout'])
+
+function loadSelectedCampaign(campaign) {
+  loadCampaign(campaign)
+}
+
+defineExpose({ loadSelectedCampaign })
 </script>
 
 <template>
@@ -169,7 +178,13 @@ function onFilterChange(cat) {
           label="Cargar campaña"
           variant="primary"
           class="pill-trigger-btn"
-          @click="loadCampaign"
+          @click="emit('requestCampaignSelect')"
+        />
+        <ButtonComp
+          label="Cerrar sesión"
+          variant="danger"
+          class="pill-trigger-btn pill-logout-btn"
+          @click="emit('logout')"
         />
         <!-- Hidden GPS file picker -->
         <input
@@ -528,23 +543,26 @@ function onFilterChange(cat) {
 }
 
 .btn-place {
-  background: #3498db;
-  color: white;
-  border: none;
+  background: #0f3460;
+  color: #90cdf4;
+  border: 1px solid rgba(144, 205, 244, 0.3);
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 11px;
   cursor: pointer;
   align-self: flex-start;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
 
 .btn-place:hover:not(:disabled) {
-  background: #2980b9;
+  background: #1a4a7a;
+  color: #bee3f8;
 }
 
 .btn-place:disabled {
-  background: #bdc3c7;
+  background: #2d3748;
+  color: #a0aec0;
+  border-color: #4a5568;
   cursor: not-allowed;
 }
 
@@ -576,35 +594,38 @@ function onFilterChange(cat) {
 }
 
 .btn-edit {
-  background: #9b59b6;
-  color: white;
-  border: none;
+  background: #0f3460;
+  color: #90cdf4;
+  border: 1px solid rgba(144, 205, 244, 0.3);
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 11px;
   cursor: pointer;
   align-self: flex-start;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
 
 .btn-edit:hover {
-  background: #8e44ad;
+  background: #1a4a7a;
+  color: #bee3f8;
 }
 
 .pill-trigger-btn :deep(button) {
-  background-color: white;
-  color: #5b5394;
-  border: none;
+  background-color: #0f3460;
+  color: #90cdf4;
+  border: 1px solid rgba(144, 205, 244, 0.3);
   border-radius: 50px;
   padding: 14px 26px;
   font-weight: bold;
   font-size: 14px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
   cursor: pointer;
   transition: all 0.2s;
 }
 .pill-trigger-btn :deep(button:hover) {
-  background-color: #f8f8f8;
+  background-color: #1a4a7a;
+  color: #bee3f8;
+  border-color: rgba(144, 205, 244, 0.5);
   transform: translateY(-2px);
 }
 
@@ -615,6 +636,15 @@ function onFilterChange(cat) {
 .pill-calibrate-btn :deep(button:hover) {
   background-color: #1a4a7a;
   color: #bee3f8;
+}
+
+.pill-logout-btn :deep(button) {
+  background-color: #991b1b;
+  color: #fca5a5;
+}
+.pill-logout-btn :deep(button:hover) {
+  background-color: #b91c1c;
+  color: #fee2e2;
 }
 
 /* Alineación de controles en la esquina inferior derecha */

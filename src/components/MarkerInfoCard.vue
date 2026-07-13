@@ -152,25 +152,27 @@ const summaryEntries = computed(() =>
 
 .mic-action-btn {
   flex: 1;
-  background-color: #1d9e75;
-  color: white;
+  background-color: #0f3460;
+  color: #90cdf4;
   border: none;
   padding: 10px 4px;
   font-weight: bold;
   font-size: 12px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
 .mic-action-btn:hover {
-  background-color: #178a64;
+  background-color: #1a4a7a;
+  color: #bee3f8;
 }
 
 .mic-move-btn {
-  background-color: #5b5394;
-  border-left: 1px solid rgba(255,255,255,0.2);
+  background-color: #0d284a;
+  border-left: 1px solid rgba(144, 205, 244, 0.25);
 }
 .mic-move-btn:hover {
-  background-color: #4a437a;
+  background-color: #163d6b;
+  color: #bee3f8;
 }
 
 /* Slide-in animation */

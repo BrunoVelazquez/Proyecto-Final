@@ -1,6 +1,6 @@
 <script setup>
 defineProps({
-  label: { type: String, default: 'Click me' },
+  label: { type: String, default: 'Aceptar' },
   variant: { type: String, default: 'primary' },
   disabled: { type: Boolean, default: false },
 })

@@ -3,6 +3,7 @@ import L from 'leaflet'
 import { ref, computed, nextTick } from 'vue'
 import exifr from 'exifr'
 import { getPhotoPlace } from '../../utils/trajectoryUtils.js'
+import { api } from '../../api/api.js'
 
 const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
 const API_BASE_URL = `${apiUrl}/api`
@@ -164,11 +165,13 @@ export function useCampaign(
     })
   }
 
-  async function loadCampaign() {
+  async function loadCampaign(campaign = null) {
     try {
-        console.log(`${API_BASE_URL}/db/geojson/`)
-      const response = await fetch(`${API_BASE_URL}/db/geojson/`)
-      const data = await response.json()
+      // Build URL — append campaign id as query param when provided
+      let url = '/api/db/geojson/'
+      if (campaign?.id != null) url += `?campaign_id=${campaign.id}`
+      console.log('[loadCampaign] fetching', url, campaign)
+      const { data } = await api.get(url)
 
       // Add EXIF timestamp parsing concurrently
       await Promise.all(data.features.map(async (feature) => {
