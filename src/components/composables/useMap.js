@@ -4,7 +4,7 @@ import { shallowRef, onMounted } from 'vue'
 
 export function useMap(mapContainerRef) {
   const map = shallowRef()
-  const markersLayerGroup = shallowRef(L.layerGroup())
+  const markersLayerGroup = shallowRef(L.featureGroup())
 
   onMounted(() => {
     map.value = L.map(mapContainerRef.value, { zoomControl: false }).setView(

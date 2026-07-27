@@ -144,7 +144,7 @@ function onFilterChange(cat) {
 }
 
 // Expose so App.vue can trigger campaign loading after selection
-const emit = defineEmits(['requestCampaignSelect', 'logout'])
+const emit = defineEmits(['requestCampaignSelect'])
 
 function loadSelectedCampaign(campaign) {
   loadCampaign(campaign)
@@ -179,12 +179,6 @@ defineExpose({ loadSelectedCampaign })
           variant="primary"
           class="pill-trigger-btn"
           @click="emit('requestCampaignSelect')"
-        />
-        <ButtonComp
-          label="Cerrar sesión"
-          variant="danger"
-          class="pill-trigger-btn pill-logout-btn"
-          @click="emit('logout')"
         />
         <!-- Hidden GPS file picker -->
         <input
@@ -638,14 +632,7 @@ defineExpose({ loadSelectedCampaign })
   color: #bee3f8;
 }
 
-.pill-logout-btn :deep(button) {
-  background-color: #991b1b;
-  color: #fca5a5;
-}
-.pill-logout-btn :deep(button:hover) {
-  background-color: #b91c1c;
-  color: #fee2e2;
-}
+
 
 /* Alineación de controles en la esquina inferior derecha */
 :deep(.leaflet-bottom.leaflet-right) {

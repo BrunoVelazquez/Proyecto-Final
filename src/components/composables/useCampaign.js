@@ -249,8 +249,13 @@ if (exifData?.DateTimeOriginal) {
         }
 
         const dummyLayer = L.geoJSON(data)
-        if (data.features.length > 0) {
-          map.value.fitBounds(dummyLayer.getBounds(), { padding: [50, 50] })
+        const markersBounds = markersLayerGroup.value.getBounds()
+        const dummyBounds = dummyLayer.getBounds()
+
+        if (markersBounds && markersBounds.isValid()) {
+          map.value.fitBounds(markersBounds, { padding: [50, 50] })
+        } else if (dummyBounds && dummyBounds.isValid()) {
+          map.value.fitBounds(dummyBounds, { padding: [50, 50] })
         }
       })
     } catch (error) {
@@ -261,6 +266,10 @@ if (exifData?.DateTimeOriginal) {
   function handleFilterChange() {
     selectedFeature.value = null
     renderMarkers()
+    const bounds = markersLayerGroup.value.getBounds()
+    if (bounds && bounds.isValid()) {
+      map.value.fitBounds(bounds, { padding: [50, 50] })
+    }
   }
 
   // Escribe las detecciones editadas de vuelta al geoJSON y actualiza el mapa

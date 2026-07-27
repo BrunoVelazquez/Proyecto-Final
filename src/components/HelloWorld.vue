@@ -1,44 +1,62 @@
 <script setup>
+import { ref } from 'vue'
 defineProps({
   msg: {
     type: String,
     required: true,
   },
 })
+
+const emit = defineEmits(['close', 'upload'])
+
+const file = ref(null)
+
+const handleFileUpload = (event) => {
+  file.value = event.target.files[0]
+}
+
+const submitUpload = () => {
+  if (file.value) {
+    emit('upload', file.value)
+  }
+}
 </script>
 
 <template>
-  <div class="greetings">
-    <h1 class="green">{{ msg }}</h1>
-    <h3>
-      You’ve successfully created a project with
-      <a href="https://vite.dev/" target="_blank" rel="noopener">Vite</a> +
-      <a href="https://vuejs.org/" target="_blank" rel="noopener">Vue 3</a>.
-    </h3>
+  <div v-if="isOpen" class="modal-overlay">
+    <div class="modal-content">
+      <h2>Upload Campaign</h2>
+      <input type="file" @change="handleFileUpload" />
+      <div class="actions">
+        <button @click="$emit('close')">Cancel</button>
+        <button @click="submitUpload">Upload</button>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
-h1 {
-  font-weight: 500;
-  font-size: 2.6rem;
-  position: relative;
-  top: -10px;
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-h3 {
-  font-size: 1.2rem;
+.modal-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
 }
 
-.greetings h1,
-.greetings h3 {
-  text-align: center;
-}
-
-@media (min-width: 1024px) {
-  .greetings h1,
-  .greetings h3 {
-    text-align: left;
-  }
+.actions {
+  margin-top: 1rem;
+  display: flex;
+  gap: 10px;
 }
 </style>
