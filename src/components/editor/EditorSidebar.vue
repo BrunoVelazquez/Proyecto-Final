@@ -69,23 +69,6 @@ const donutSlices = computed(() => {
     return slice
   })
 })
-
-const maxBarValue = computed(() => {
-  if (props.detectionStats.length === 0) return 10
-  const max = Math.max(...props.detectionStats.map(s => s.count))
-  return Math.max(5, Math.ceil(max / 5) * 5)
-})
-
-const yAxisTicks = computed(() => {
-  const max = maxBarValue.value
-  const step = Math.max(1, Math.round(max / 4))
-  const ticks = []
-  for (let v = 0; v <= max; v += step) {
-    ticks.push(v)
-  }
-  if (ticks[ticks.length - 1] !== max) ticks.push(max)
-  return ticks.reverse()
-})
 </script>
 
 <template>
@@ -100,14 +83,14 @@ const yAxisTicks = computed(() => {
           :class="{ active: editorTool === 'draw' }"
           @click="$emit('update:editorTool', 'draw')"
         >
-          ✏ Crear
+          Crear
         </ButtonComp>
         <ButtonComp
           class="lb-tool-btn lb-tool-btn-delete"
           @click="$emit('removeBox', selectedBoxIndex)"
           :disabled="selectedBoxIndex < 0"
         >
-          🗑 Borrar
+          Borrar
         </ButtonComp>
       </div>
 
@@ -155,7 +138,7 @@ const yAxisTicks = computed(() => {
           @click.prevent="$emit('toggleAllBoxes')"
           :title="allHidden ? 'Mostrar todos' : 'Ocultar todos'"
         >
-          {{ allHidden ? '👁 Mostrar' : '🚫 Ocultar' }}
+          {{ allHidden ? 'Mostrar' : 'Ocultar' }}
         </button>
       </div>
 
@@ -188,7 +171,7 @@ const yAxisTicks = computed(() => {
             >
               <span class="lb-box-label">Objeto {{ item.index + 1 }}</span>
               <span class="lb-vis-eye" @click.stop="$emit('toggleBoxVisibility', item.box)">
-                {{ allHidden || hiddenCategories.has(cat) || hiddenBoxes.has(item.box) ? '🙈' : '👁' }}
+                {{ allHidden || hiddenCategories.has(cat) || hiddenBoxes.has(item.box) ? 'X' : '👁' }}
               </span>
             </div>
           </div>
@@ -204,9 +187,6 @@ const yAxisTicks = computed(() => {
         <div v-if="showCharts" class="lb-charts-panel">
           <div class="lb-chart-header">
             <span>Imagen: <b>{{ totalDetections }}</b> detecciones</span>
-            <button class="btn-open-global-charts" @click="showChartsModal = true" title="Ver gráficos por campaña y totales globales">
-              📊 Ver Todas las Campañas
-            </button>
           </div>
 
           <!-- Donut Chart -->
@@ -250,37 +230,6 @@ const yAxisTicks = computed(() => {
                 <span class="lb-legend-dot" :style="{ backgroundColor: stat.color }"></span>
                 <span class="lb-legend-text">{{ stat.category }}</span>
                 <span class="lb-legend-val">({{ stat.count }})</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Vertical Bar Chart -->
-          <div class="lb-chart-section">
-            <div class="lb-section-title">Conteo por Categoría</div>
-            <div class="lb-bar-container">
-              <div class="lb-y-axis">
-                <div v-for="tick in yAxisTicks" :key="tick" class="lb-y-tick">{{ tick }}</div>
-              </div>
-              <div class="lb-bars-area">
-                <div class="lb-grid-lines">
-                  <div v-for="tick in yAxisTicks" :key="tick" class="lb-grid-line"></div>
-                </div>
-                <div class="lb-bars-row">
-                  <div v-for="stat in detectionStats" :key="stat.category" class="lb-bar-col">
-                    <div class="lb-bar-tooltip">{{ stat.category }}: {{ stat.count }}</div>
-                    <div class="lb-bar-track">
-                      <div
-                        class="lb-bar-fill"
-                        :style="{
-                          height: (stat.count / maxBarValue) * 100 + '%',
-                          backgroundColor: hoveredCategory === stat.category ? '#1a4a7a' : '#0f3460',
-                          borderColor: stat.color
-                        }"
-                      ></div>
-                    </div>
-                    <div class="lb-bar-lbl" :title="stat.category">{{ stat.category }}</div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

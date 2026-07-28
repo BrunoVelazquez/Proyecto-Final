@@ -217,7 +217,6 @@ defineExpose({ loadSelectedCampaign })
       <!-- Coast snap status banner -->
       <Transition name="snap-fade">
         <div v-if="snapStatus" class="snap-status-banner" :class="`snap-${snapStatus}`">
-          <span v-if="snapStatus === 'loading' || snapStatus === 'snapping'" class="snap-spinner">⧗</span>
           <span>{{ snapMessage }}</span>
           <button v-if="snapStatus === 'error' || snapStatus === 'done'" class="move-cancel-btn" @click="dismissSnap">✕</button>
         </div>
@@ -408,11 +407,6 @@ defineExpose({ loadSelectedCampaign })
 }
 .snap-error {
   background: rgba(220, 53, 69, 0.92);
-}
-
-.snap-spinner {
-  display: inline-block;
-  animation: spin 1s linear infinite;
 }
 
 @keyframes spin {

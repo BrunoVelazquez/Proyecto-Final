@@ -165,7 +165,7 @@ const campaignBarStats = computed(() => {
       (c.title && f.properties?.campaign_title === c.title) ||
       (f.properties?.model_name && c.model_used && f.properties?.model_name === c.model_used)
     )
-    let count = 0
+    let count;
     if (matchingFeatures.length > 0) {
       count = matchingFeatures.reduce((sum, f) => sum + (f.properties?.detections?.length || f.properties?.total_detections || 1), 0)
     } else {
@@ -261,12 +261,7 @@ const yAxisTicks = computed(() => {
           <div class="chart-card donut-section">
             <div class="chart-card-header">
               <div class="card-title-group">
-                <span class="grid-icon">::</span>
                 <span class="card-title">Label Distribution</span>
-                <span class="tag-badge">RectangleLabels</span>
-              </div>
-              <div class="card-actions">
-                <span class="summary-label">Summary ∨</span>
               </div>
             </div>
 
@@ -352,9 +347,6 @@ const yAxisTicks = computed(() => {
                     @click="barChartMode = 'por_campana'"
                   >Por Campañas</button>
                 </div>
-              </div>
-              <div class="bar-summary">
-                Máximo: <strong>{{ maxBarValue }}</strong>
               </div>
             </div>
 
@@ -668,7 +660,7 @@ const yAxisTicks = computed(() => {
 .legend-grid {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: left;
   gap: 14px 22px;
   padding: 10px 14px 0;
   border-top: 1px solid rgba(255, 255, 255, 0.05);

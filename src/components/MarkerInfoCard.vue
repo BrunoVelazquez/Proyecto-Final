@@ -46,10 +46,10 @@ const summaryEntries = computed(() =>
 
       <div class="mic-action-row">
         <button class="mic-action-btn" @click="$emit('openEditor', feature.props)">
-          🔍 Abrir editor
+            Abrir editor
         </button>
         <button class="mic-action-btn mic-move-btn" @click="$emit('moveMarker', feature.props)">
-          📍 Mover
+            Mover
         </button>
       </div>
     </div>

@@ -180,7 +180,7 @@ export function useCoastSnap() {
     renderMarkers()
 
     snapStatus.value = 'done'
-    snapMessage.value = `✔ ${snapped} marcadores ajustados a la costa.`
+    snapMessage.value = `${snapped} marcadores ajustados a la costa.`
 
     // Auto-dismiss after 4 seconds
     setTimeout(() => {

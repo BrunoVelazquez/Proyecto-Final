@@ -31,6 +31,9 @@ onMounted(async () => {
 const showUploadModal = ref(false)
 const imageFiles = ref([])
 const gpsFile = ref(null)
+const campaignTitle = ref('')
+const campaignDescription = ref('')
+const campaignDate = ref('')
 const isDraggingImages = ref(false)
 const isDraggingGps = ref(false)
 const uploadStatus = ref('idle') // 'idle' | 'uploading' | 'success' | 'error'
@@ -43,7 +46,7 @@ const imagePreviewUrls = computed(() =>
 const totalSize = computed(() =>
   formatSize(imageFiles.value.reduce((acc, f) => acc + f.size, 0) + (gpsFile.value?.size ?? 0))
 )
-const canUpload = computed(() => imageFiles.value.length > 0 && uploadStatus.value !== 'uploading')
+const canUpload = computed(() => imageFiles.value.length > 0 && campaignTitle.value.trim() !== '' && uploadStatus.value !== 'uploading')
 
 function formatSize(bytes) {
   if (bytes < 1024) return bytes + ' B'
@@ -74,6 +77,9 @@ function onGpsDrop(e) {
 function clearUpload() {
   imageFiles.value = []
   gpsFile.value = null
+  campaignTitle.value = ''
+  campaignDescription.value = ''
+  campaignDate.value = ''
   uploadStatus.value = 'idle'
   uploadProgress.value = 0
   uploadError.value = ''
@@ -89,6 +95,9 @@ async function doUpload() {
   uploadError.value = ''
   try {
     const form = new FormData()
+    form.append('title', campaignTitle.value)
+    if (campaignDescription.value) form.append('description', campaignDescription.value)
+    if (campaignDate.value) form.append('date', campaignDate.value)
     imageFiles.value.forEach(f => form.append('imagenes', f))
     if (gpsFile.value) form.append('gps_log', gpsFile.value)
     await api.post('/api/analizar/', form, {
@@ -120,27 +129,10 @@ async function doUpload() {
       <!-- Header -->
       <div class="modal-header">
         <div class="header-main">
-          <div class="logo-badge">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="10" stroke="url(#g2)" stroke-width="2"/>
-              <path d="M8 12 L12 8 L16 12 L12 16 Z" fill="url(#g2)"/>
-              <defs>
-                <linearGradient id="g2" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stop-color="#818cf8"/>
-                  <stop offset="100%" stop-color="#c084fc"/>
-                </linearGradient>
-              </defs>
-            </svg>
-          </div>
           <div class="header-texts">
             <h2 class="modal-title">Seleccionar Campaña</h2>
             <p class="modal-subtitle">Elige qué campaña deseas cargar en el mapa</p>
           </div>
-        </div>
-        <div class="header-actions">
-          <button class="charts-trigger-btn" title="Ver gráficos de conteo" @click="showChartsModal = true; selectedChartsCampaignId = null">
-            📊 Gráficos de Conteo
-          </button>
         </div>
       </div>
 
@@ -160,18 +152,15 @@ async function doUpload() {
         <!-- Cargar nueva campaña button -->
         <div class="new-campaign-container">
           <div class="campaign-item new-campaign-item" @click="showUploadModal = true">
-            <div class="campaign-icon new-icon">🚀</div>
             <div class="campaign-info">
               <span class="campaign-title">Cargar nueva campaña</span>
               <span class="campaign-desc">Subir imágenes y un log GPS opcional para analizar</span>
             </div>
-            <span class="campaign-arrow">→</span>
           </div>
         </div>
 
         <!-- Empty -->
         <div v-if="!campaigns.length" class="state-box empty">
-          <span class="empty-icon">📭</span>
           <span>No hay campañas disponibles aún.</span>
         </div>
 
@@ -184,7 +173,6 @@ async function doUpload() {
           :id="`campaign-item-${c.id}`"
           @click="$emit('select', c)"
         >
-          <div class="campaign-icon">🗺</div>
           <div class="campaign-info">
             <span class="campaign-title">{{ c.title ?? c.name ?? `Campaña #${c.id}` }}</span>
             <span class="campaign-meta">
@@ -196,7 +184,6 @@ async function doUpload() {
           </div>
           <div class="item-actions">
             <button class="item-chart-btn" title="Ver estadísticas de esta campaña" @click.stop="openChartsForCampaign(c.id)">📊</button>
-            <span class="campaign-arrow">→</span>
           </div>
         </li>
         </ul>
@@ -217,7 +204,6 @@ async function doUpload() {
             <!-- Header -->
             <div class="uc-header">
               <div class="uc-header-left">
-                <div class="uc-icon">🚀</div>
                 <div>
                   <h2 class="uc-title">Cargar Nueva Campaña</h2>
                   <p class="uc-subtitle">Procesa imágenes con el modelo de detección</p>
@@ -230,15 +216,32 @@ async function doUpload() {
             <div class="uc-body">
               <!-- SUCCESS -->
               <div v-if="uploadStatus === 'success'" class="uc-success">
-                <div class="uc-success-icon">✅</div>
                 <h3>¡Campaña enviada!</h3>
                 <p>Tus imágenes están siendo procesadas. La campaña aparecerá en la lista en breve.</p>
               </div>
 
               <template v-else>
-                <!-- Images section -->
+                <!-- Metadata section -->
                 <div class="uc-label">
-                  <span>📷 Imágenes</span>
+                  <span>Detalles de la Campaña</span>
+                  <span class="uc-badge required">título requerido</span>
+                </div>
+                <div class="uc-field-group">
+                  <input type="text" v-model="campaignTitle" placeholder="Título de la campaña (ej. Censo 2024)" class="uc-input" />
+                  <textarea v-model="campaignDescription" placeholder="Descripción opcional" class="uc-input uc-textarea" rows="2"></textarea>
+                  <input 
+                    type="text" 
+                    v-model="campaignDate" 
+                    placeholder="Fecha opcional" 
+                    class="uc-input" 
+                    onfocus="(this.type='date')" 
+                    onblur="(this.value === '' ? this.type='text' : this.type='date')"
+                  />
+                </div>
+
+                <!-- Images section -->
+                <div class="uc-label" style="margin-top: 10px;">
+                  <span>Imágenes</span>
                   <span class="uc-badge required">requerido</span>
                   <span v-if="imageFiles.length" class="uc-file-count">{{ imageFiles.length }} archivo{{ imageFiles.length !== 1 ? 's' : '' }} · {{ totalSize }}</span>
                 </div>
@@ -251,7 +254,6 @@ async function doUpload() {
                   @drop.prevent="onImageDrop"
                 >
                   <div v-if="imageFiles.length === 0" class="uc-dz-empty">
-                    <div class="uc-dz-icon">🖼️</div>
                     <p class="uc-dz-text">Arrastrá imágenes aquí<br><span>o hacé clic para seleccionar</span></p>
                     <p class="uc-dz-hint">JPG, PNG o WebP · Sin límite</p>
                     <label class="uc-pick-btn">
@@ -284,7 +286,7 @@ async function doUpload() {
 
                 <!-- GPS section -->
                 <div class="uc-label">
-                  <span>📍 Log GPS de trayectoria</span>
+                  <span>Log GPS de trayectoria</span>
                   <span class="uc-badge optional">opcional</span>
                 </div>
 
@@ -296,7 +298,6 @@ async function doUpload() {
                   @drop.prevent="onGpsDrop"
                 >
                   <div v-if="!gpsFile" class="uc-dz-empty uc-gps-empty">
-                    <div class="uc-dz-icon">📄</div>
                     <p class="uc-dz-text">Arrastrá tu .txt aquí<br><span>o hacé clic para seleccionarlo</span></p>
                     <label class="uc-pick-btn secondary">
                       Seleccionar archivo
@@ -337,7 +338,7 @@ async function doUpload() {
                 :class="{ 'is-uploading': uploadStatus === 'uploading' }"
               >
                 <span v-if="uploadStatus === 'uploading'" class="uc-spinner"></span>
-                {{ uploadStatus === 'uploading' ? 'Procesando…' : '🚀 Iniciar análisis' }}
+                {{ uploadStatus === 'uploading' ? 'Procesando…' : 'Iniciar análisis' }}
               </button>
             </div>
           </div>
@@ -734,6 +735,23 @@ async function doUpload() {
 .uc-badge.required { background: rgba(168,85,247,0.18); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); }
 .uc-badge.optional { background: rgba(144,205,244,0.1); color: #90cdf4; border: 1px solid rgba(144,205,244,0.2); }
 .uc-file-count { margin-left: auto; font-size: 0.76rem; font-weight: 400; color: rgba(167,167,220,0.55); }
+
+/* Fields */
+.uc-field-group {
+  display: flex; flex-direction: column; gap: 8px; margin-bottom: 6px;
+}
+.uc-input {
+  width: 100%; padding: 10px 14px;
+  background: rgba(15, 52, 96, 0.15);
+  border: 1px solid rgba(144, 205, 244, 0.22);
+  border-radius: 10px; color: #e2e8f0;
+  font-size: 0.85rem; outline: none;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+.uc-input:focus { border-color: #90cdf4; background: rgba(15, 52, 96, 0.35); }
+.uc-input::placeholder { color: rgba(167, 167, 220, 0.4); }
+.uc-textarea { resize: vertical; min-height: 56px; font-family: inherit; }
 
 /* Drop zones */
 .uc-dropzone {
