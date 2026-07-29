@@ -27,7 +27,7 @@ const { availableCategories, selectedCategories, getCategoryColor, extractCatego
 function getImageUrl(imageName) {
   if (!imageName) return ''
   const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
-  return `${apiUrl}/api/db/imagenes/${imageName}/`
+  return `${apiUrl}/api/images/${imageName}/`
 }
 
 // --- Campaña (fetch + marcadores) ---
@@ -55,10 +55,18 @@ const {
 )
 
 // --- Coast Snapping ---
-const { snapStatus, snapMessage, snapAllToCoast, dismissSnap } = useCoastSnap()
+const { snapStatus, snapMessage, snapAllToCoast, confirmSnap, cancelSnap, dismissSnap } = useCoastSnap()
 
 function onSnapToCoast() {
-  snapAllToCoast(geoJsonData, renderMarkers)
+  snapAllToCoast(geoJsonData, map)
+}
+
+function onConfirmSnap() {
+  confirmSnap(map, renderMarkers)
+}
+
+function onCancelSnap() {
+  cancelSnap(map)
 }
 
 // --- Calibración de desfasaje GPS ---
@@ -171,7 +179,7 @@ defineExpose({ loadSelectedCampaign })
           label="Ajustar a Costa"
           variant="primary"
           class="pill-trigger-btn"
-          :disabled="snapStatus === 'loading' || snapStatus === 'snapping'"
+          :disabled="snapStatus === 'loading' || snapStatus === 'snapping' || snapStatus === 'preview'"
           @click="onSnapToCoast"
         />
         <ButtonComp
@@ -218,6 +226,14 @@ defineExpose({ loadSelectedCampaign })
       <Transition name="snap-fade">
         <div v-if="snapStatus" class="snap-status-banner" :class="`snap-${snapStatus}`">
           <span>{{ snapMessage }}</span>
+
+          <!-- Preview confirmation buttons -->
+          <template v-if="snapStatus === 'preview'">
+            <button class="snap-confirm-btn" @click="onConfirmSnap">Confirmar</button>
+            <button class="snap-cancel-btn" @click="onCancelSnap">Cancelar</button>
+          </template>
+
+          <!-- Dismiss for done / error -->
           <button v-if="snapStatus === 'error' || snapStatus === 'done'" class="move-cancel-btn" @click="dismissSnap">✕</button>
         </div>
       </Transition>
@@ -402,11 +418,54 @@ defineExpose({ loadSelectedCampaign })
 .snap-loading, .snap-snapping {
   background: rgba(30, 20, 60, 0.9);
 }
+.snap-preview {
+  background: rgba(14, 43, 80, 0.94);
+  border: 1px solid rgba(34, 211, 238, 0.45);
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 560px;
+  text-align: center;
+  white-space: normal;
+  border-radius: 16px;
+  padding: 12px 22px;
+}
 .snap-done {
   background: rgba(29, 158, 117, 0.92);
 }
 .snap-error {
   background: rgba(220, 53, 69, 0.92);
+}
+
+/* Confirm / Cancel buttons inside the preview banner */
+.snap-confirm-btn,
+.snap-cancel-btn {
+  border: none;
+  padding: 7px 18px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s;
+  white-space: nowrap;
+}
+.snap-confirm-btn {
+  background: rgba(34, 211, 238, 0.22);
+  border: 1px solid rgba(34, 211, 238, 0.55);
+  color: #22d3ee;
+}
+.snap-confirm-btn:hover {
+  background: rgba(34, 211, 238, 0.38);
+}
+.snap-cancel-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.75);
+}
+.snap-cancel-btn:hover {
+  background: rgba(231, 76, 60, 0.5);
+  border-color: rgba(231, 76, 60, 0.7);
+  color: white;
 }
 
 @keyframes spin {

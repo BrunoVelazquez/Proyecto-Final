@@ -51,8 +51,18 @@ async function loadData() {
     }
 
     // 2. Cargar todas las detecciones para el Total
-    const geoRes = await api.get('/api/db/geojson/')
-    allFeatures.value = geoRes.data?.features ?? []
+    // Since there's no single endpoint for all features, we fetch each campaign's features
+    const featuresList = []
+    if (campaigns.value.length > 0) {
+      const promises = campaigns.value.map(c => api.get(`/api/campaigns/${c.id}/`).catch(() => ({ data: { features: [] } })))
+      const results = await Promise.all(promises)
+      results.forEach(res => {
+        if (res.data && res.data.features) {
+          featuresList.push(...res.data.features)
+        }
+      })
+    }
+    allFeatures.value = featuresList
 
     if (props.initialCampaignId) {
       selectedView.value = `campaign_${props.initialCampaignId}`
@@ -78,7 +88,7 @@ async function updateCurrentFeatures() {
     const campId = selectedView.value.replace('campaign_', '')
     try {
       loading.value = true
-      const { data } = await api.get(`/api/db/geojson/?campaign_id=${campId}`)
+      const { data } = await api.get(`/api/campaigns/${campId}/`)
       currentFeatures.value = data?.features ?? []
     } catch (e) {
       console.warn(`No se pudieron cargar features de la campaña ${campId}, intentando filtrar en memoria`, e)

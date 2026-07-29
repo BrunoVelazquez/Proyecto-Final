@@ -593,13 +593,13 @@ export function useEditor({ getCategoryColor, availableCategories, getImageUrl }
       // Actualizar snapshot para el próximo guardado
       originalFeatures = JSON.parse(JSON.stringify(current))
       saveStatus.value = modifiedCount > 0
-        ? `✅ Detecciones actualizadas`
-        : `✅ Sin cambios`
+        ? `Detecciones actualizadas`
+        : `Sin cambios`
       setTimeout(() => {
         saveStatus.value = ''
       }, 3000)
     } catch (error) {
-      saveStatus.value = '❌ Error al guardar'
+      saveStatus.value = 'Error al guardar'
       console.error(error)
     }
   }

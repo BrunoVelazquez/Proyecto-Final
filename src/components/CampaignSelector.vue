@@ -100,7 +100,7 @@ async function doUpload() {
     if (campaignDate.value) form.append('date', campaignDate.value)
     imageFiles.value.forEach(f => form.append('imagenes', f))
     if (gpsFile.value) form.append('gps_log', gpsFile.value)
-    await api.post('/api/analizar/', form, {
+    await api.post('/api/campaigns/', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress(e) {
         if (e.total) uploadProgress.value = Math.round((e.loaded / e.total) * 100)
@@ -229,12 +229,12 @@ async function doUpload() {
                 <div class="uc-field-group">
                   <input type="text" v-model="campaignTitle" placeholder="Título de la campaña (ej. Censo 2024)" class="uc-input" />
                   <textarea v-model="campaignDescription" placeholder="Descripción opcional" class="uc-input uc-textarea" rows="2"></textarea>
-                  <input 
-                    type="text" 
-                    v-model="campaignDate" 
-                    placeholder="Fecha opcional" 
-                    class="uc-input" 
-                    onfocus="(this.type='date')" 
+                  <input
+                    type="text"
+                    v-model="campaignDate"
+                    placeholder="Fecha opcional"
+                    class="uc-input"
+                    onfocus="(this.type='date')"
                     onblur="(this.value === '' ? this.type='text' : this.type='date')"
                   />
                 </div>

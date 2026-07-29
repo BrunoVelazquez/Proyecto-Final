@@ -11,7 +11,14 @@ defineEmits(['openEditor', 'moveMarker', 'close'])
 
 const imageUrl = computed(() => {
   const url = props.feature ? props.getImageUrl(props.feature.props.image_name) : null
-  return url ? `${url}?res=thumb` : null
+  if (!url) return null
+  try {
+    const urlObj = new URL(url, window.location.origin)
+    urlObj.searchParams.set('res', 'thumb')
+    return urlObj.toString()
+  } catch (e) {
+    return url.includes('?') ? `${url}&res=thumb` : `${url}?res=thumb`
+  }
 })
 
 const summaryEntries = computed(() =>

@@ -5,9 +5,6 @@ import exifr from 'exifr'
 import { getPhotoPlace } from '../../utils/trajectoryUtils.js'
 import { api } from '../../api/api.js'
 
-const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
-const API_BASE_URL = `${apiUrl}/api`
-
 export function useCampaign(
   map,
   markersLayerGroup,
@@ -74,7 +71,7 @@ export function useCampaign(
 
     let noTimestamp = 0
     let noMatch = 0
-    let updated = 0
+    let updated = []
 
     geoJsonData.value.features.forEach((feature, i) => {
       // Ignorar los marcadores ubicados a mano, deben quedarse donde los puso el usuario
@@ -94,7 +91,7 @@ export function useCampaign(
         feature.geometry.coordinates = [match.longitude, match.latitude]
         feature.properties.gps.latitude = match.latitude
         feature.properties.gps.longitude = match.longitude
-        updated++
+        updated.push(feature)
       } else {
         noMatch++
         if (noMatch <= 2) {
@@ -112,8 +109,15 @@ export function useCampaign(
       }
     })
 
-    console.log(`[applyOffset] Updated ${updated} / ${geoJsonData.value.features.length} | noTimestamp=${noTimestamp} | noMatch=${noMatch}`)
+    console.log(`[applyOffset] Updated ${updated.length} / ${geoJsonData.value.features.length} | noTimestamp=${noTimestamp} | noMatch=${noMatch}`)
     renderMarkers()
+
+    // Persistir los cambios en el backend (fire-and-forget)
+    if (updated.length > 0) {
+      Promise.all(updated.map(f => persistFeatureLocation(f))).catch((e) => {
+        console.error('[applyOffset] Error persistiendo locaciones:', e)
+      })
+    }
   }
 
   function renderMarkers() {
@@ -168,8 +172,7 @@ export function useCampaign(
   async function loadCampaign(campaign = null) {
     try {
       // Build URL — append campaign id as query param when provided
-      let url = '/api/db/geojson/'
-      if (campaign?.id != null) url += `?campaign_id=${campaign.id}`
+      let url = `/api/campaigns/${campaign.id}/`
       console.log('[loadCampaign] fetching', url, campaign)
       const { data } = await api.get(url)
 
@@ -272,8 +275,8 @@ if (exifData?.DateTimeOriginal) {
     }
   }
 
-  // Escribe las detecciones editadas de vuelta al geoJSON y actualiza el mapa
-  function updateFeatureDetections(imageName, newDetections) {
+  // Escribe las detecciones editadas de vuelta al geoJSON, actualiza el mapa y persiste en el backend
+  async function updateFeatureDetections(imageName, newDetections) {
     if (!geoJsonData.value) return
     const feature = geoJsonData.value.features.find(
       (f) => f.properties.image_name === imageName,
@@ -293,6 +296,26 @@ if (exifData?.DateTimeOriginal) {
       }
     }
     renderMarkers()
+
+    // Persistir en el backend (Bulk Replace)
+    try {
+      const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
+      const imageId = feature.properties.image_id
+      const response = await fetch(
+        `${baseUrl}/api/images/${imageId}/detections/`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newDetections),
+        }
+      )
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        console.error('[updateFeatureDetections] Backend error:', err)
+      }
+    } catch (e) {
+      console.error('[updateFeatureDetections] Network error:', e)
+    }
   }
 
   function startMoveMarker(featureProps) {
@@ -338,19 +361,47 @@ if (exifData?.DateTimeOriginal) {
     map.value.getContainer().style.cursor = 'crosshair'
   }
 
-  function saveMarkerPosition(lat, lon) {
+  async function saveMarkerPosition(lat, lon) {
     if (!moveMarkerTarget.value) return
 
-    // Update the feature coordinates
-    moveMarkerTarget.value.geometry.coordinates = [lon, lat]
-    moveMarkerTarget.value.properties.manual_placement = true
-    if (moveMarkerTarget.value.properties.gps) {
-      moveMarkerTarget.value.properties.gps.latitude = lat
-      moveMarkerTarget.value.properties.gps.longitude = lon
+    const feature = moveMarkerTarget.value
+
+    // Update the feature coordinates in frontend
+    feature.geometry.coordinates = [lon, lat]
+    feature.properties.manual_placement = true
+    if (feature.properties.gps) {
+      feature.properties.gps.latitude = lat
+      feature.properties.gps.longitude = lon
     }
 
     cancelMoveMarker()
     renderMarkers()
+
+    // Persist location to backend
+    await persistFeatureLocation(feature)
+  }
+
+  async function persistFeatureLocation(feature) {
+    const imageId = feature.properties.image_id
+    const lat = feature.geometry.coordinates[1]
+    const lon = feature.geometry.coordinates[0]
+    
+    try {
+      const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
+      const response = await fetch(
+        `${baseUrl}/api/images/${imageId}/location/`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ latitude: lat, longitude: lon }),
+        }
+      )
+      if (!response.ok) {
+        console.error('[persistFeatureLocation] Backend error:', await response.json().catch(() => ({})))
+      }
+    } catch (e) {
+      console.error('[persistFeatureLocation] Network error:', e)
+    }
   }
 
   function cancelMoveMarker() {
