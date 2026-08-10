@@ -4,7 +4,29 @@ import { getCampaigns } from '../api/campaignsApi'
 import { api } from '../api/api.js'
 import CampaignChartsModal from './CampaignChartsModal.vue'
 
+const emit = defineEmits(['select', 'logout'])
+
 const campaigns = ref([])
+const selectedCampaigns = ref([])
+
+function isSelected(c) {
+  return selectedCampaigns.value.some(sel => sel.id === c.id)
+}
+
+function toggleSelection(c) {
+  const index = selectedCampaigns.value.findIndex(sel => sel.id === c.id)
+  if (index >= 0) {
+    selectedCampaigns.value.splice(index, 1)
+  } else {
+    selectedCampaigns.value.push(c)
+  }
+}
+
+function emitSelection() {
+  if (selectedCampaigns.value.length > 0) {
+    emit('select', selectedCampaigns.value)
+  }
+}
 const loading = ref(true)
 const error = ref('')
 
@@ -26,6 +48,25 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+const mockLoading = ref(false)
+
+async function doMockUpload() {
+  if (mockLoading.value) return
+  mockLoading.value = true
+  try {
+    const form = new FormData()
+    form.append('title', 'Campaña Mock (Desde JSON)')
+    await api.post('/api/campaigns/mock/', form)
+    // Refresh campaign list
+    const { data } = await getCampaigns()
+    campaigns.value = data.campaigns ?? []
+  } catch (err) {
+    error.value = err.response?.data?.detail ?? 'Error al crear la campaña mock.'
+  } finally {
+    mockLoading.value = false
+  }
+}
 
 // ── Upload Campaign Modal ──────────────────────────────────────────────────
 const showUploadModal = ref(false)
@@ -134,6 +175,9 @@ async function doUpload() {
             <p class="modal-subtitle">Elige qué campaña deseas cargar en el mapa</p>
           </div>
         </div>
+        <div class="header-actions">
+          <button class="logout-btn" @click="$emit('logout')" title="Cerrar sesión">Salir</button>
+        </div>
       </div>
 
       <!-- Loading -->
@@ -157,6 +201,14 @@ async function doUpload() {
               <span class="campaign-desc">Subir imágenes y un log GPS opcional para analizar</span>
             </div>
           </div>
+          <!-- Botón de mock -->
+          <div class="campaign-item new-campaign-item mock-campaign-item" @click="doMockUpload" style="margin-top: 8px;">
+            <div class="campaign-info">
+              <span class="campaign-title">Cargar campaña mock (Pruebas)</span>
+              <span class="campaign-desc">{{ mockLoading ? 'Procesando...' : 'Simula la subida y procesamiento con resultados estáticos' }}</span>
+            </div>
+            <div v-if="mockLoading" class="spinner-ring" style="margin-right: 8px;"></div>
+          </div>
         </div>
 
         <!-- Empty -->
@@ -170,8 +222,9 @@ async function doUpload() {
           v-for="c in campaigns"
           :key="c.id"
           class="campaign-item"
+          :class="{ 'is-selected': isSelected(c) }"
           :id="`campaign-item-${c.id}`"
-          @click="$emit('select', c)"
+          @click="toggleSelection(c)"
         >
           <div class="campaign-info">
             <span class="campaign-title">{{ c.title ?? c.name ?? `Campaña #${c.id}` }}</span>
@@ -187,6 +240,12 @@ async function doUpload() {
           </div>
         </li>
         </ul>
+
+        <div class="selection-actions" v-if="selectedCampaigns.length > 0">
+          <button class="uc-btn-primary" @click="emitSelection">
+            Cargar {{ selectedCampaigns.length }} campaña{{ selectedCampaigns.length !== 1 ? 's' : '' }} en el mapa
+          </button>
+        </div>
       </template>
     </div>
 
@@ -367,7 +426,7 @@ async function doUpload() {
   max-height: 85vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(145deg, #1a1535, #111029);
+  background: #1a1535;
   border: 1px solid rgba(129, 140, 248, 0.2);
   border-radius: 24px;
   padding: 32px 32px 24px;
@@ -405,7 +464,7 @@ async function doUpload() {
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(129,140,248,0.18), rgba(192,132,252,0.18));
+  background: rgba(129,140,248,0.18);
   border: 1px solid rgba(129,140,248,0.28);
   flex-shrink: 0;
 }
@@ -467,16 +526,30 @@ async function doUpload() {
   transform: scale(1.08);
 }
 
+.logout-btn {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.logout-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.5);
+  transform: translateY(-1px);
+}
+
 
 
 .modal-title {
   margin: 0;
   font-size: 1.35rem;
   font-weight: 700;
-  background: linear-gradient(90deg, #a5b4fc, #e879f9);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #a5b4fc;
   white-space: nowrap;
 }
 
@@ -557,6 +630,19 @@ async function doUpload() {
 .campaign-item:hover {
   background: rgba(15, 52, 96, 0.35);
   border-color: rgba(144, 205, 244, 0.35);
+}
+
+.campaign-item.is-selected {
+  background: rgba(144, 205, 244, 0.15);
+  border-color: rgba(144, 205, 244, 0.6);
+  box-shadow: 0 0 10px rgba(144, 205, 244, 0.2);
+}
+
+.selection-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 4px;
 }
 
 .new-campaign-container {
@@ -680,7 +766,7 @@ async function doUpload() {
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(145deg, #1a1535, #0e0d2a);
+  background: #1a1535;
   border: 1px solid rgba(144, 205, 244, 0.2);
   border-radius: 24px;
   box-shadow: 0 40px 90px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255,255,255,0.03) inset;
@@ -854,7 +940,7 @@ async function doUpload() {
 }
 .uc-progress-fill {
   height: 100%; border-radius: 6px;
-  background: linear-gradient(90deg, #0f3460, #90cdf4);
+  background: #0f3460;
   transition: width 0.3s ease;
 }
 .uc-progress-label { font-size: 0.76rem; color: rgba(167,167,220,0.6); text-align: center; }
@@ -884,13 +970,13 @@ async function doUpload() {
 .uc-btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
 .uc-btn-primary {
   display: inline-flex; align-items: center; gap: 8px;
-  background: linear-gradient(135deg, #0f3460, #1a4a7a);
+  background: #0f3460;
   border: 1px solid rgba(144,205,244,0.4);
   color: #90cdf4; padding: 9px 24px; border-radius: 20px;
   font-size: 0.87rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
 }
 .uc-btn-primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #1a4a7a, #2563a8);
+  background: #1a4a7a;
   border-color: rgba(144,205,244,0.7);
   transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(15,52,96,0.5);

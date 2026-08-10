@@ -249,7 +249,7 @@ function handleCancel() {
   appearance: none;
   height: 4px;
   border-radius: 4px;
-  background: linear-gradient(to right, #4a5568 0%, #2b6cb0 50%, #4a5568 100%);
+  background: #4a5568;
   outline: none;
   cursor: pointer;
 }

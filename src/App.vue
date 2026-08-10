@@ -1,15 +1,34 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import 'leaflet/dist/leaflet.css'
 import BaseMap from './components/BaseMap.vue'
 import CampaignSelector from './components/CampaignSelector.vue'
+import LoginScreen from './components/LoginScreen.vue'
 
 const baseMapRef = ref(null)
 
 // UI state machine
+// 'login'  → show login screen
 // 'select' → show campaign selector
 // 'map'    → map is active (no modals)
-const screen = ref('select')
+const screen = ref('login')
+
+onMounted(() => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    screen.value = 'select'
+  }
+})
+
+function onLoginSuccess() {
+  screen.value = 'select'
+}
+
+function onLogout() {
+  localStorage.removeItem('token')
+  localStorage.removeItem('user')
+  screen.value = 'login'
+}
 
 async function onCampaignSelected(campaign) {
   screen.value = 'map'
@@ -24,15 +43,22 @@ function onRequestCampaignSelect() {
 </script>
 
 <template>
+  <LoginScreen
+    v-if="screen === 'login'"
+    @success="onLoginSuccess"
+  />
+
   <BaseMap
     v-show="screen === 'map'"
     ref="baseMapRef"
     @requestCampaignSelect="onRequestCampaignSelect"
+    @logout="onLogout"
   />
 
   <CampaignSelector
     v-if="screen === 'select'"
     @select="onCampaignSelected"
+    @logout="onLogout"
   />
 </template>
 

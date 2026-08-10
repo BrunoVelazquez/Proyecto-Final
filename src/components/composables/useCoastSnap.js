@@ -9,6 +9,7 @@
 
 import { ref } from 'vue'
 import L from 'leaflet'
+import { api } from '../../api/api.js'
 
 export function useCoastSnap() {
   const snapStatus = ref('') // '', 'loading', 'snapping', 'preview', 'done', 'error'
@@ -32,9 +33,13 @@ export function useCoastSnap() {
     const bbox = `${south - pad},${west - pad},${north + pad},${east + pad}`
     const query = `[out:json][timeout:30];way["natural"="coastline"](${bbox});(._; >;);out body;`
     const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
+    const token = localStorage.getItem('token')
     const response = await fetch(`${apiUrl}/api/overpass/`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
       body: `data=${encodeURIComponent(query)}`,
     })
     if (!response.ok) throw new Error(`Overpass API error: ${response.status}`)
@@ -159,21 +164,10 @@ export function useCoastSnap() {
     const imageId = feature.properties.image_id
     const lat = feature.geometry.coordinates[1]
     const lon = feature.geometry.coordinates[0]
-    const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
     try {
-      const response = await fetch(
-        `${baseUrl}/api/images/${imageId}/location/`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ latitude: lat, longitude: lon }),
-        },
-      )
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}))
-        console.error(`[useCoastSnap] Backend error for location of image ID ${imageId}:`, err)
-      }
+      await api.put(`/api/images/${imageId}/location/`, { latitude: lat, longitude: lon })
     } catch (e) {
+      console.error(`[useCoastSnap] Backend/Network error for location of image ID ${imageId}:`, e)
       console.error(`[useCoastSnap] Network error for location of image ID ${imageId}:`, e)
     }
   }

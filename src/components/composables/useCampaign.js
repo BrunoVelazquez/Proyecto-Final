@@ -169,12 +169,20 @@ export function useCampaign(
     })
   }
 
-  async function loadCampaign(campaign = null) {
+  async function loadCampaign(campaignInput) {
     try {
-      // Build URL — append campaign id as query param when provided
-      let url = `/api/campaigns/${campaign.id}/`
-      console.log('[loadCampaign] fetching', url, campaign)
-      const { data } = await api.get(url)
+      const campaigns = Array.isArray(campaignInput) ? campaignInput : [campaignInput].filter(Boolean)
+      if (campaigns.length === 0) return
+
+      const allFeatures = []
+      for (const campaign of campaigns) {
+        let url = `/api/campaigns/${campaign.id}/`
+        console.log('[loadCampaign] fetching', url, campaign)
+        const { data } = await api.get(url)
+        allFeatures.push(...(data.features || []))
+      }
+
+      const data = { type: 'FeatureCollection', features: allFeatures }
 
       // Add EXIF timestamp parsing concurrently
       await Promise.all(data.features.map(async (feature) => {
@@ -299,22 +307,14 @@ if (exifData?.DateTimeOriginal) {
 
     // Persistir en el backend (Bulk Replace)
     try {
-      const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
       const imageId = feature.properties.image_id
-      const response = await fetch(
-        `${baseUrl}/api/images/${imageId}/detections/`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newDetections),
-        }
+      const response = await api.put(
+        `/api/images/${imageId}/detections/`,
+        newDetections
       )
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}))
-        console.error('[updateFeatureDetections] Backend error:', err)
-      }
+      console.log('[updateFeatureDetections] Detections updated:', response.data)
     } catch (e) {
-      console.error('[updateFeatureDetections] Network error:', e)
+      console.error('[updateFeatureDetections] Backend/Network error:', e)
     }
   }
 
@@ -387,20 +387,12 @@ if (exifData?.DateTimeOriginal) {
     const lon = feature.geometry.coordinates[0]
     
     try {
-      const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
-      const response = await fetch(
-        `${baseUrl}/api/images/${imageId}/location/`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ latitude: lat, longitude: lon }),
-        }
+      await api.put(
+        `/api/images/${imageId}/location/`,
+        { latitude: lat, longitude: lon }
       )
-      if (!response.ok) {
-        console.error('[persistFeatureLocation] Backend error:', await response.json().catch(() => ({})))
-      }
     } catch (e) {
-      console.error('[persistFeatureLocation] Network error:', e)
+      console.error('[persistFeatureLocation] Backend/Network error:', e)
     }
   }
 

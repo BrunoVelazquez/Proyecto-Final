@@ -428,7 +428,7 @@ const yAxisTicks = computed(() => {
   max-height: 92vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(145deg, #1a1535, #111029);
+  background: #1a1535;
   border: 1px solid rgba(144, 205, 244, 0.25);
   border-radius: 20px;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7);
