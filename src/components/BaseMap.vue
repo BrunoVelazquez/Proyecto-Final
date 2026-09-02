@@ -34,6 +34,8 @@ function getImageUrl(imageName) {
 const {
   geoJsonData,
   campaignLoaded,
+  loadedCampaigns,
+  visibleCampaignIds,
   selectedFeature,
   unmappedFeatures,
   placementModeFeature,
@@ -151,12 +153,34 @@ function onFilterChange(cat) {
   handleFilterChange()
 }
 
+function onToggleCampaign(id) {
+  const idx = visibleCampaignIds.value.indexOf(id)
+  if (idx >= 0) visibleCampaignIds.value.splice(idx, 1)
+  else visibleCampaignIds.value.push(id)
+  handleFilterChange()
+}
+
+function onClearCategories() {
+  selectedCategories.value = []
+  handleFilterChange()
+}
+
+function onSelectAllCategories() {
+  selectedCategories.value = [...availableCategories.value]
+  handleFilterChange()
+}
+
 // Expose so App.vue can trigger campaign loading after selection
 const emit = defineEmits(['requestCampaignSelect'])
 
 function loadSelectedCampaign(campaign) {
   loadCampaign(campaign)
 }
+
+const canEditLocation = computed(() => {
+  if (loadedCampaigns.value.length === 0) return true
+  return loadedCampaigns.value.every(c => c.mi_rol !== 'IA')
+})
 
 defineExpose({ loadSelectedCampaign })
 </script>
@@ -168,14 +192,14 @@ defineExpose({ loadSelectedCampaign })
 
       <div class="fab-position-left">
         <ButtonComp
-          v-if="campaignLoaded"
+          v-if="campaignLoaded && canEditLocation"
           label="Calibrar GPS"
           variant="primary"
           class="pill-trigger-btn pill-calibrate-btn"
           @click="startCalibration"
         />
         <ButtonComp
-          v-if="campaignLoaded"
+          v-if="campaignLoaded && canEditLocation"
           label="Ajustar a Costa"
           variant="primary"
           class="pill-trigger-btn"
@@ -205,6 +229,7 @@ defineExpose({ loadSelectedCampaign })
           :feature="selectedFeature"
           :getCategoryColor="getCategoryColor"
           :getImageUrl="getImageUrl"
+          :canEditLocation="canEditLocation"
           @openEditor="openEditor"
           @moveMarker="startMoveMarker"
           @close="selectedFeature = null"
@@ -250,7 +275,12 @@ defineExpose({ loadSelectedCampaign })
           :availableCategories="availableCategories"
           :selectedCategories="selectedCategories"
           :getCategoryColor="getCategoryColor"
+          :availableCampaigns="loadedCampaigns"
+          :visibleCampaignIds="visibleCampaignIds"
           @change="onFilterChange"
+          @toggleCampaign="onToggleCampaign"
+          @clearCategories="onClearCategories"
+          @selectAllCategories="onSelectAllCategories"
         />
 
         <div v-if="unmappedFeatures.length > 0" class="unmapped-list-container">
@@ -267,7 +297,7 @@ defineExpose({ loadSelectedCampaign })
                 <span class="unmapped-name">{{ feat.properties.image_name }}</span>
                 <div class="unmapped-actions">
                   <button
-                    v-if="placementModeFeature?.properties.image_name !== feat.properties.image_name"
+                    v-if="canEditLocation && placementModeFeature?.properties.image_name !== feat.properties.image_name"
                     class="btn-place"
                     @click.stop="placementModeFeature = feat"
                     :disabled="calibrationMode"
@@ -275,7 +305,7 @@ defineExpose({ loadSelectedCampaign })
                     Ubicar en mapa
                   </button>
                   <button
-                    v-else
+                    v-else-if="canEditLocation && placementModeFeature?.properties.image_name === feat.properties.image_name"
                     class="btn-cancel-place"
                     @click.stop="placementModeFeature = null"
                   >

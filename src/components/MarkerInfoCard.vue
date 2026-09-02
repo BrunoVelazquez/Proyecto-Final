@@ -5,6 +5,10 @@ const props = defineProps({
   feature: { type: Object, default: null }, // { props: feature.properties, summary: { cat: count } }
   getCategoryColor: { type: Function, required: true },
   getImageUrl: { type: Function, required: true },
+  canEditLocation: {
+    type: Boolean,
+    default: true
+  }
 })
 
 defineEmits(['openEditor', 'moveMarker', 'close'])
@@ -55,7 +59,7 @@ const summaryEntries = computed(() =>
         <button class="mic-action-btn" @click="$emit('openEditor', feature.props)">
             Abrir editor
         </button>
-        <button class="mic-action-btn mic-move-btn" @click="$emit('moveMarker', feature.props)">
+        <button v-if="canEditLocation" class="mic-action-btn mic-move-btn" @click="$emit('moveMarker', feature.props)">
             Mover
         </button>
       </div>
@@ -68,6 +72,7 @@ const summaryEntries = computed(() =>
   width: 100%;
   background: white;
   border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   overflow: hidden;
   display: flex;

@@ -3,6 +3,7 @@ import L from 'leaflet'
 import { ref, computed, nextTick } from 'vue'
 import exifr from 'exifr'
 import { getPhotoPlace } from '../../utils/trajectoryUtils.js'
+import { getCampaignShapeSvg } from '../../utils/shapeUtils.js'
 import { api } from '../../api/api.js'
 
 export function useCampaign(
@@ -12,6 +13,9 @@ export function useCampaign(
 ) {
   const geoJsonData = ref(null)
   const campaignLoaded = ref(false)
+
+  const loadedCampaigns = ref([])
+  const visibleCampaignIds = ref([])
 
   // Feature seleccionada al hacer click en un marcador
   const selectedFeature = ref(null)
@@ -27,7 +31,7 @@ export function useCampaign(
   const unmappedFeatures = computed(() => {
     if (!geoJsonData.value) return []
     return geoJsonData.value.features.filter(
-      (f) => f.properties.gps_matched === false && !f.properties.manual_placement
+      (f) => f.properties.gps_matched === false && !f.properties.manual_placement && visibleCampaignIds.value.includes(f.properties.campaign_id)
     )
   })
 
@@ -131,6 +135,9 @@ export function useCampaign(
       // No renderizar si no tiene match GPS y no fue ubicado manualmente
       if (props.gps_matched === false && !props.manual_placement) return
 
+      // Filtrar por campaña visible
+      if (!visibleCampaignIds.value.includes(props.campaign_id)) return
+
       const countByClass = {}
       props.detections.forEach((d) => {
         if (selectedCategories.value.includes(d.category)) {
@@ -149,14 +156,17 @@ export function useCampaign(
         const count = countByClass[cat]
         const radius = Math.max(8, Math.min(30, Math.sqrt(count) * 4.5))
         const color = getCategoryColor(cat)
+        const campaignIndex = loadedCampaigns.value.findIndex(c => c.id === props.campaign_id)
 
-        const marker = L.circleMarker([lat, lon], {
-          color: color,
-          fillColor: color,
-          fillOpacity: 0.25,
-          opacity: 0.8,
-          weight: 2,
-          radius: radius,
+        const svgHtml = getCampaignShapeSvg(Math.max(0, campaignIndex), color, radius)
+
+        const marker = L.marker([lat, lon], {
+          icon: L.divIcon({
+            html: svgHtml,
+            className: '',
+            iconSize: [radius * 2, radius * 2],
+            iconAnchor: [radius, radius]
+          })
         })
 
         marker.on('click', (e) => {
@@ -174,12 +184,19 @@ export function useCampaign(
       const campaigns = Array.isArray(campaignInput) ? campaignInput : [campaignInput].filter(Boolean)
       if (campaigns.length === 0) return
 
+      loadedCampaigns.value = campaigns
+      visibleCampaignIds.value = campaigns.map(c => c.id)
+
       const allFeatures = []
       for (const campaign of campaigns) {
         let url = `/api/campaigns/${campaign.id}/`
         console.log('[loadCampaign] fetching', url, campaign)
         const { data } = await api.get(url)
-        allFeatures.push(...(data.features || []))
+        const features = data.features || []
+        features.forEach(f => {
+          f.properties.campaign_id = campaign.id
+        })
+        allFeatures.push(...features)
       }
 
       const data = { type: 'FeatureCollection', features: allFeatures }
@@ -249,9 +266,16 @@ if (exifData?.DateTimeOriginal) {
               const f = placementModeFeature.value
               f.geometry = { type: 'Point', coordinates: [e.latlng.lng, e.latlng.lat] }
               f.properties.manual_placement = true
+              if (f.properties.gps) {
+                f.properties.gps.latitude = e.latlng.lat
+                f.properties.gps.longitude = e.latlng.lng
+              }
 
               placementModeFeature.value = null
               renderMarkers()
+
+              // Persist location to backend
+              persistFeatureLocation(f)
             } else {
               selectedFeature.value = null
             }
@@ -277,10 +301,6 @@ if (exifData?.DateTimeOriginal) {
   function handleFilterChange() {
     selectedFeature.value = null
     renderMarkers()
-    const bounds = markersLayerGroup.value.getBounds()
-    if (bounds && bounds.isValid()) {
-      map.value.fitBounds(bounds, { padding: [50, 50] })
-    }
   }
 
   // Escribe las detecciones editadas de vuelta al geoJSON, actualiza el mapa y persiste en el backend
@@ -385,7 +405,7 @@ if (exifData?.DateTimeOriginal) {
     const imageId = feature.properties.image_id
     const lat = feature.geometry.coordinates[1]
     const lon = feature.geometry.coordinates[0]
-    
+
     try {
       await api.put(
         `/api/images/${imageId}/location/`,
@@ -415,6 +435,8 @@ if (exifData?.DateTimeOriginal) {
   return {
     geoJsonData,
     campaignLoaded,
+    loadedCampaigns,
+    visibleCampaignIds,
     selectedFeature,
     unmappedFeatures,
     placementModeFeature,

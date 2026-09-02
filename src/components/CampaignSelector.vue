@@ -1,13 +1,24 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { getCampaigns } from '../api/campaignsApi'
+import { getGrupos, createGrupo } from '../api/gruposApi'
 import { api } from '../api/api.js'
 import CampaignChartsModal from './CampaignChartsModal.vue'
+import GroupAdminModal from './GroupAdminModal.vue'
 
 const emit = defineEmits(['select', 'logout'])
 
 const campaigns = ref([])
+const grupos = ref([])
+const activeTab = ref('personales')
 const selectedCampaigns = ref([])
+
+const canCreateCampaign = computed(() => {
+  if (activeTab.value === 'personales') return true
+  const activeGroup = grupos.value.find(g => g.id === activeTab.value)
+  if (activeGroup && activeGroup.mi_rol === 'IA') return false
+  return true
+})
 
 function isSelected(c) {
   return selectedCampaigns.value.some(sel => sel.id === c.id)
@@ -39,15 +50,63 @@ function openChartsForCampaign(campaignId) {
 }
 
 onMounted(async () => {
+  await loadData()
+})
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
   try {
-    const { data } = await getCampaigns()
-    campaigns.value = data.campaigns ?? []
+    const [campRes, grupRes] = await Promise.all([
+      getCampaigns(activeTab.value === 'personales' ? null : activeTab.value),
+      getGrupos()
+    ])
+    grupos.value = grupRes.data?.grupos ?? []
+    const camps = campRes.data?.campaigns ?? []
+    
+    const currentRole = activeTab.value === 'personales' 
+      ? 'IP' 
+      : grupos.value.find(g => g.id === activeTab.value)?.mi_rol || 'IP'
+      
+    camps.forEach(c => c.mi_rol = currentRole)
+    campaigns.value = camps
   } catch {
-    error.value = 'Error al cargar las campañas. Por favor, intenta nuevamente.'
+    error.value = 'Error al cargar los datos. Por favor, intenta nuevamente.'
   } finally {
     loading.value = false
   }
+}
+
+watch(activeTab, () => {
+  selectedCampaigns.value = []
+  loadData()
 })
+
+const showGroupAdmin = ref(false)
+const showCreateGroupModal = ref(false)
+const newGroupName = ref('')
+const newGroupDesc = ref('')
+const groupAdminId = ref(null)
+
+function openGroupAdmin() {
+  if (activeTab.value === 'personales') return
+  groupAdminId.value = activeTab.value
+  showGroupAdmin.value = true
+}
+
+async function doCreateGroup() {
+  if (!newGroupName.value) return
+  try {
+    const { data } = await createGrupo({ nombre: newGroupName.value, descripcion: newGroupDesc.value })
+    showCreateGroupModal.value = false
+    newGroupName.value = ''
+    newGroupDesc.value = ''
+    activeTab.value = data.id
+    await loadData()
+  } catch (err) {
+    alert(err.response?.data?.error || 'Error al crear grupo')
+  }
+}
 
 const mockLoading = ref(false)
 
@@ -57,10 +116,12 @@ async function doMockUpload() {
   try {
     const form = new FormData()
     form.append('title', 'Campaña Mock (Desde JSON)')
+    if (activeTab.value !== 'personales') {
+      form.append('grupo_id', activeTab.value)
+    }
     await api.post('/api/campaigns/mock/', form)
-    // Refresh campaign list
-    const { data } = await getCampaigns()
-    campaigns.value = data.campaigns ?? []
+    // Refresh list
+    await loadData()
   } catch (err) {
     error.value = err.response?.data?.detail ?? 'Error al crear la campaña mock.'
   } finally {
@@ -68,13 +129,13 @@ async function doMockUpload() {
   }
 }
 
-// ── Upload Campaign Modal ──────────────────────────────────────────────────
 const showUploadModal = ref(false)
 const imageFiles = ref([])
 const gpsFile = ref(null)
 const campaignTitle = ref('')
 const campaignDescription = ref('')
 const campaignDate = ref('')
+const campaignGroupId = ref('')
 const isDraggingImages = ref(false)
 const isDraggingGps = ref(false)
 const uploadStatus = ref('idle') // 'idle' | 'uploading' | 'success' | 'error'
@@ -139,6 +200,7 @@ async function doUpload() {
     form.append('title', campaignTitle.value)
     if (campaignDescription.value) form.append('description', campaignDescription.value)
     if (campaignDate.value) form.append('date', campaignDate.value)
+    if (campaignGroupId.value) form.append('grupo_id', campaignGroupId.value)
     imageFiles.value.forEach(f => form.append('imagenes', f))
     if (gpsFile.value) form.append('gps_log', gpsFile.value)
     await api.post('/api/campaigns/', form, {
@@ -151,8 +213,8 @@ async function doUpload() {
     uploadProgress.value = 100
     setTimeout(() => {
       closeUploadModal()
-      // Refresh campaign list
-      getCampaigns().then(({ data }) => { campaigns.value = data.campaigns ?? [] }).catch(() => {})
+      // Refresh list
+      loadData()
     }, 2000)
   } catch (err) {
     uploadStatus.value = 'error'
@@ -193,9 +255,25 @@ async function doUpload() {
 
       <!-- Content when loaded without error -->
       <template v-else>
+        <!-- Tabs -->
+        <div class="tabs-container">
+          <div class="tabs">
+            <button class="tab-btn" :class="{active: activeTab === 'personales'}" @click="activeTab = 'personales'">
+              Personales
+            </button>
+            <button v-for="g in grupos" :key="g.id" class="tab-btn" :class="{active: activeTab === g.id}" @click="activeTab = g.id">
+              {{ g.nombre }}
+            </button>
+            <button class="tab-btn btn-new-group" @click="showCreateGroupModal = true">+ Nuevo Grupo</button>
+          </div>
+          <div v-if="activeTab !== 'personales'" class="tab-actions">
+             <button class="btn-group-admin" @click="openGroupAdmin">Configuración del Grupo</button>
+          </div>
+        </div>
+
         <!-- Cargar nueva campaña button -->
-        <div class="new-campaign-container">
-          <div class="campaign-item new-campaign-item" @click="showUploadModal = true">
+        <div v-if="canCreateCampaign" class="new-campaign-container">
+          <div class="campaign-item new-campaign-item" @click="showUploadModal = true; campaignGroupId = activeTab === 'personales' ? '' : activeTab">
             <div class="campaign-info">
               <span class="campaign-title">Cargar nueva campaña</span>
               <span class="campaign-desc">Subir imágenes y un log GPS opcional para analizar</span>
@@ -255,6 +333,36 @@ async function doUpload() {
       @close="showChartsModal = false; selectedChartsCampaignId = null"
     />
 
+    <GroupAdminModal 
+      :show="showGroupAdmin"
+      :grupoId="groupAdminId"
+      @close="showGroupAdmin = false; groupAdminId = null"
+      @deleted="activeTab = 'personales'; loadData()"
+    />
+
+    <!-- Modal Nuevo Grupo -->
+    <Teleport to="body">
+      <Transition name="uc-fade">
+        <div v-if="showCreateGroupModal" class="uc-backdrop" @click.self="showCreateGroupModal = false">
+          <div class="uc-card" style="max-width: 400px; padding-bottom: 20px;">
+            <div class="uc-header">
+              <h2 class="uc-title">Nuevo Grupo</h2>
+              <button class="uc-close" @click="showCreateGroupModal = false">✕</button>
+            </div>
+            <div class="uc-body">
+              <div class="uc-field-group">
+                <input type="text" v-model="newGroupName" placeholder="Nombre del grupo" class="uc-input" />
+                <textarea v-model="newGroupDesc" placeholder="Descripción opcional" class="uc-input uc-textarea"></textarea>
+              </div>
+              <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+                <button class="uc-btn-primary" @click="doCreateGroup">Crear Grupo</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- Upload Campaign Modal -->
     <Teleport to="body">
       <Transition name="uc-fade">
@@ -296,6 +404,10 @@ async function doUpload() {
                     onfocus="(this.type='date')"
                     onblur="(this.value === '' ? this.type='text' : this.type='date')"
                   />
+                  <select v-model="campaignGroupId" class="uc-input">
+                    <option value="">Personal (Sin grupo)</option>
+                    <option v-for="g in grupos" :key="g.id" :value="g.id">{{ g.nombre }}</option>
+                  </select>
                 </div>
 
                 <!-- Images section -->
@@ -746,6 +858,57 @@ async function doUpload() {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* Tabs */
+.tabs-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(129, 140, 248, 0.15);
+  padding-bottom: 8px;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+}
+.tab-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: rgba(226,226,240,0.6);
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+.tab-btn:hover {
+  background: rgba(129, 140, 248, 0.1);
+  color: #e2e2f0;
+}
+.tab-btn.active {
+  background: rgba(129, 140, 248, 0.2);
+  border-color: rgba(129, 140, 248, 0.4);
+  color: #a5b4fc;
+}
+.btn-new-group {
+  border: 1px dashed rgba(129, 140, 248, 0.4);
+  color: #a5b4fc;
+}
+.btn-group-admin {
+  background: rgba(15, 52, 96, 0.6);
+  border: 1px solid rgba(144, 205, 244, 0.3);
+  color: #90cdf4;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.btn-group-admin:hover {
+  background: #1a4a7a;
 }
 
 /* ─── Upload Campaign Modal ────────────────────────────────────────────── */
